@@ -1,8 +1,8 @@
 package advisor.client;
 
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.text.ParseException;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -281,6 +281,59 @@ public class AdvisorClient {
 		}
 		return null;
 		
+	}
+	
+	public Trial completeTrialWithTensorboardMetrics(Trial trial, LinkedList<HashMap<String,Double>> list) throws ClientProtocolException, JSONException, IOException, ParseException{
+		double objectiveValue=0;
+		for (HashMap<String,Double> scalarSummary : list) {
+			objectiveValue=scalarSummary.get("value");
+			this.createTrialMetric(trial.getStudyId(), trial.getId(), new JSONObject(scalarSummary.get("step")), objectiveValue);
+			
+		}
+		String url= endpoint+"/suggestion/v1/studies/"+trial.getStudyId()+"/trials/"+trial.getId();
+		JSONObject putData= new JSONObject();
+		putData.put("status", "Completed");
+		putData.put("objective_value", objectiveValue);
+		StringEntity entity = new StringEntity(putData.toString());
+		CloseableHttpClient httpclient = HttpClients.createDefault();
+		
+		HttpPut httpPut= new HttpPut(url);
+		httpPut.setEntity(entity);
+		httpPut.setHeader("Accept", "application/json");
+		httpPut.setHeader("Content-type", "application/json");
+	    
+	    CloseableHttpResponse responseHttp = httpclient.execute(httpPut);
+	    if(responseHttp.getStatusLine().getStatusCode()==200){
+	    	String response=EntityUtils.toString(responseHttp.getEntity()) ;
+			JSONObject responseJSON= new JSONObject(response);
+			
+			return 	new Trial(responseJSON.getJSONObject("data"));
+	    }
+	    return null;
+	}
+	
+	public Trial completeTrialWithOneMetric(Trial trial, Double metric) throws ClientProtocolException, JSONException, IOException, ParseException{
+		this.createTrialMetric(trial.getStudyId(), trial.getId(), null, metric);
+		String url= endpoint+"/suggestion/v1/studies/"+trial.getStudyId()+"/trials/"+trial.getId();
+		JSONObject putData= new JSONObject();
+		putData.put("status", "Completed");
+		putData.put("objective_value", metric);
+		StringEntity entity = new StringEntity(putData.toString());
+		CloseableHttpClient httpclient = HttpClients.createDefault();
+		
+		HttpPut httpPut= new HttpPut(url);
+		httpPut.setEntity(entity);
+		httpPut.setHeader("Accept", "application/json");
+		httpPut.setHeader("Content-type", "application/json");
+	    
+	    CloseableHttpResponse responseHttp = httpclient.execute(httpPut);
+	    if(responseHttp.getStatusLine().getStatusCode()==200){
+	    	String response=EntityUtils.toString(responseHttp.getEntity()) ;
+			JSONObject responseJSON= new JSONObject(response);
+			
+			return 	new Trial(responseJSON.getJSONObject("data"));
+	    }
+	    return null;
 	}
 
 	public static void main(String[] args) {
