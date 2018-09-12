@@ -44,7 +44,7 @@ public class Trial {
 		Object objParams=jsonObject.get("parameter_values");
 		this.parameterValues=objParams.equals(JSONObject.NULL)?null:new JSONObject( jsonObject.getString("parameter_values"));
 		Object objValue=jsonObject.get("objective_value");
-		this.objectiveValue=objValue.equals(JSONObject.NULL)?null:(Double)objValue;
+		this.objectiveValue=objValue.equals(JSONObject.NULL)?null:Double.parseDouble(objValue.toString());
 		this.status=jsonObject.getString("status");
 		this.createdTime= Trial.dtf.parse(jsonObject.getString("created_time"));
 		this.updatedTime= Trial.dtf.parse(jsonObject.getString("updated_time"));
