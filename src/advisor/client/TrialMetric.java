@@ -38,7 +38,7 @@ public class TrialMetric {
 		Object trStepObj=jsonObject.get("training_step");
 		this.trainingStep=trStepObj.equals(JSONObject.NULL)?null:new JSONObject( jsonObject.getString("training_step"));
 		Object objValue=jsonObject.get("objective_value");
-		this.objectiveValue=objValue.equals(JSONObject.NULL)?null:(Double)objValue;
+		this.objectiveValue=objValue.equals(JSONObject.NULL)?null:Double.parseDouble(objValue.toString());
 		this.createdTime= TrialMetric.dtf.parse(jsonObject.getString("created_time"));
 		this.updatedTime= TrialMetric.dtf.parse(jsonObject.getString("updated_time"));
 		/*
