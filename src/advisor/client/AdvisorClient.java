@@ -1,6 +1,9 @@
 package advisor.client;
 
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
+import java.nio.charset.Charset;
 import java.text.ParseException;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -66,6 +69,38 @@ public class AdvisorClient {
 		return null;
 	}
 	
+	public Study getOrCreateStudy(String studyName, JSONObject studyConfiguration, String algorithm) throws ClientProtocolException, IOException, JSONException, ParseException{
+		String studyNameURL=URLEncoder.encode(studyName,"UTF-8");
+		String url= endpoint+"/suggestion/v1/studies/"+studyNameURL+"/exist";
+		
+		CloseableHttpClient httpclient = HttpClients.createDefault();
+		 
+		HttpGet httpGet= new HttpGet(url);
+		httpGet.setHeader("Accept", "application/json");
+		httpGet.setHeader("Content-type", "application/json");
+		
+		CloseableHttpResponse responseHttp = httpclient.execute(httpGet);
+		Study study=null;
+		if(responseHttp.getStatusLine().getStatusCode()==200){
+			String response=EntityUtils.toString(responseHttp.getEntity()) ;
+			JSONObject responseJSON= new JSONObject(response);
+			boolean responseExists=responseJSON.getBoolean("exist");
+			
+			
+			if(responseExists){
+				study=this.getStudyByName(studyName);
+			}
+			else{
+				study=this.createStudy(studyName, studyConfiguration, algorithm);
+			}
+			
+			
+			
+		}
+		
+		return study;
+	}
+	
 	public List<Study> listStudies() throws ClientProtocolException, IOException, JSONException, ParseException{
 		
 		LinkedList<Study> list= new LinkedList<Study>();
@@ -93,8 +128,9 @@ public class AdvisorClient {
 		
 	}
 	
-	public Study getStudyById(int studyId) throws ClientProtocolException, IOException, JSONException, ParseException{
-		String url= endpoint+"/suggestion/v1/studies/"+studyId;
+	public Study getStudyByName(String studyName) throws ClientProtocolException, IOException, JSONException, ParseException{
+		String studyNameURL=URLEncoder.encode(studyName,"UTF-8");
+		String url= endpoint+"/suggestion/v1/studies/"+studyNameURL;
 		CloseableHttpClient httpclient = HttpClients.createDefault();
 		 
 		HttpGet httpGet= new HttpGet(url);
@@ -112,11 +148,12 @@ public class AdvisorClient {
 		
 	}
 	
-	public List<Trial> getSuggestions(int studyId, int trialsNumber) throws ClientProtocolException, IOException, JSONException, ParseException{
+	public List<Trial> getSuggestions(String studyName, int trialsNumber) throws ClientProtocolException, IOException, JSONException, ParseException{
+		String studyNameURL=URLEncoder.encode(studyName,"UTF-8");
 		LinkedList<Trial> list= new LinkedList<Trial>();
 		if(trialsNumber<=0)
 			trialsNumber=1;
-		String url= endpoint+"/suggestion/v1/studies/"+studyId+"/suggestions";
+		String url= endpoint+"/suggestion/v1/studies/"+studyNameURL+"/suggestions";
 		JSONObject requestData= new JSONObject();
 		
 		requestData.put("trials_number", trialsNumber);
@@ -144,8 +181,9 @@ public class AdvisorClient {
 	}
 	
 	
-	public boolean isStudyDone(int studyId) throws ClientProtocolException, JSONException, IOException, ParseException{
-		Study study=getStudyById(studyId);
+	public boolean isStudyDone(String studyName) throws ClientProtocolException, JSONException, IOException, ParseException{
+		String studyNameURL=URLEncoder.encode(studyName,"UTF-8");
+		Study study=getStudyByName(studyName);
 		
 		if(study==null)
 			return false;
@@ -154,12 +192,12 @@ public class AdvisorClient {
 		if(Study.COMPLETED.equals(study.getStatus()))
 			return true;
 		
-		List<Trial> trials=listTrials(studyId);
+		List<Trial> trials=listTrials(studyName);
 		for (Trial trial : trials){ 
 			if(!Trial.COMPLETED.equals(trial.getStatus()))
 				return false;
 		}	
-		String url= endpoint+"/suggestion/v1/studies/"+studyId;
+		String url= endpoint+"/suggestion/v1/studies/"+studyNameURL;
 		
 		JSONObject putData= new JSONObject();
 		putData.put("status", "Completed");
@@ -179,9 +217,10 @@ public class AdvisorClient {
 	    return true;
 	}
 
-	public List<Trial> listTrials(int studyId) throws ClientProtocolException, IOException, JSONException, ParseException{
+	public List<Trial> listTrials(String studyName) throws ClientProtocolException, IOException, JSONException, ParseException{
+		String studyNameURL=URLEncoder.encode(studyName,"UTF-8");
 		LinkedList<Trial> list= new LinkedList<Trial>();
-		String url= endpoint+"/suggestion/v1/studies/"+studyId+"/trials";
+		String url= endpoint+"/suggestion/v1/studies/"+studyNameURL+"/trials";
 		CloseableHttpClient httpclient = HttpClients.createDefault();
 		 
 		HttpGet httpGet= new HttpGet(url);
@@ -202,19 +241,44 @@ public class AdvisorClient {
 		return list;
 	}
 	
-	@Beta
-	public List<TrialMetric> listTrialMetrics(int studyId, int trialId){
-		return null;
+
+	public List<TrialMetric> listTrialMetrics(String studyName, int trialId) throws ClientProtocolException, IOException, JSONException, ParseException{
+		String studyNameURL=URLEncoder.encode(studyName,"UTF-8");
+		LinkedList<TrialMetric> list= new LinkedList<TrialMetric>();
+		String url= endpoint+"/suggestion/v1/studies/"+studyNameURL+"/trials/"+trialId+"/metrics";
+		
+		
+		CloseableHttpClient httpclient = HttpClients.createDefault();
+		
+		HttpGet httpGet= new HttpGet(url);
+		httpGet.setHeader("Accept", "application/json");
+		httpGet.setHeader("Content-type", "application/json");
+	    
+	    CloseableHttpResponse responseHttp = httpclient.execute(httpGet);
+	    
+	    if(responseHttp.getStatusLine().getStatusCode()==200){
+			String response=EntityUtils.toString(responseHttp.getEntity()) ;
+			JSONObject responseJSON= new JSONObject(response);
+			JSONArray responseJSONData=responseJSON.getJSONArray("data");
+			Iterator<Object> trials=responseJSONData.iterator();
+			while(trials.hasNext()){
+				list.add(new TrialMetric((JSONObject) trials.next()));
+			}
+			
+		}
+		
+		return list;
 	}
 	
-	public Trial getBestTrial(int studyId) throws ClientProtocolException, JSONException, IOException, ParseException{
-		if(!this.isStudyDone(studyId))
+	public Trial getBestTrial(String studyName) throws ClientProtocolException, JSONException, IOException, ParseException{
+		
+		if(!this.isStudyDone(studyName))
 			return null;
 		
-		Study st= this.getStudyById(studyId);
+		Study st= this.getStudyByName(studyName);
 		JSONObject configuration=st.getStudy_configuration();
 		String studyGoal=configuration.getString("goal");
-		List<Trial> trials=this.listTrials(studyId);
+		List<Trial> trials=this.listTrials(studyName);
 		
 		Trial bestTrial=null;
 		for (Trial trial : trials) {
@@ -239,8 +303,9 @@ public class AdvisorClient {
 		return bestTrial;
 	}
 	
-	public Trial getTrial(int studyId, int trialId) throws ClientProtocolException, IOException, JSONException, ParseException{
-		String url= endpoint+"/suggestion/v1/studies/"+studyId+"/trials/"+trialId;
+	public Trial getTrial(String studyName, int trialId) throws ClientProtocolException, IOException, JSONException, ParseException{
+		String studyNameURL=URLEncoder.encode(studyName,"UTF-8");
+		String url= endpoint+"/suggestion/v1/studies/"+studyNameURL+"/trials/"+trialId;
 		
 		CloseableHttpClient httpclient = HttpClients.createDefault();
 		 
@@ -258,8 +323,9 @@ public class AdvisorClient {
 	    return null;
 	}
 	
-	public TrialMetric createTrialMetric(int studyId, int trialId, JSONObject trainingStep, Double objectiveValue) throws ClientProtocolException, IOException, JSONException, ParseException{
-		String url= endpoint+"/suggestion/v1/studies/"+studyId+"/trials/"+trialId+"/metrics";
+	public TrialMetric createTrialMetric(String studyName, int trialId, JSONObject trainingStep, Double objectiveValue) throws ClientProtocolException, IOException, JSONException, ParseException{
+		String studyNameURL=URLEncoder.encode(studyName,"UTF-8");
+		String url= endpoint+"/suggestion/v1/studies/"+studyNameURL+"/trials/"+trialId+"/metrics";
 		
 		JSONObject requestData= new JSONObject();
 		requestData.put("training_step", trainingStep==null?JSONObject.NULL:trainingStep);
@@ -284,13 +350,15 @@ public class AdvisorClient {
 	}
 	
 	public Trial completeTrialWithTensorboardMetrics(Trial trial, LinkedList<HashMap<String,Double>> list) throws ClientProtocolException, JSONException, IOException, ParseException{
+		
 		double objectiveValue=0;
 		for (HashMap<String,Double> scalarSummary : list) {
 			objectiveValue=scalarSummary.get("value");
-			this.createTrialMetric(trial.getStudyId(), trial.getId(), new JSONObject(scalarSummary.get("step")), objectiveValue);
+			this.createTrialMetric(trial.getName(), trial.getId(), new JSONObject(scalarSummary.get("step")), objectiveValue);
 			
 		}
-		String url= endpoint+"/suggestion/v1/studies/"+trial.getStudyId()+"/trials/"+trial.getId();
+		String studyNameURL=URLEncoder.encode(trial.getStudyName(),"UTF-8");
+		String url= endpoint+"/suggestion/v1/studies/"+studyNameURL+"/trials/"+trial.getId();
 		JSONObject putData= new JSONObject();
 		putData.put("status", "Completed");
 		putData.put("objective_value", objectiveValue);
@@ -313,8 +381,9 @@ public class AdvisorClient {
 	}
 	
 	public Trial completeTrialWithOneMetric(Trial trial, Double metric) throws ClientProtocolException, JSONException, IOException, ParseException{
-		this.createTrialMetric(trial.getStudyId(), trial.getId(), null, metric);
-		String url= endpoint+"/suggestion/v1/studies/"+trial.getStudyId()+"/trials/"+trial.getId();
+		this.createTrialMetric(trial.getStudyName(), trial.getId(), null, metric);
+		String studyNameURL=URLEncoder.encode(trial.getStudyName(),"UTF-8");
+		String url= endpoint+"/suggestion/v1/studies/"+studyNameURL+"/trials/"+trial.getId();
 		JSONObject putData= new JSONObject();
 		putData.put("status", "Completed");
 		putData.put("objective_value", metric);
@@ -341,7 +410,7 @@ public class AdvisorClient {
 		AdvisorClient cl= new AdvisorClient();
 		try {
 			JSONObject studyConfiguration= new JSONObject("{\"goal\": \"MAXIMIZE\",	\"randomInitTrials\": 3,	\"maxTrials\": 5,	\"maxParallelTrials\": 1,	\"params\": [		{			\"parameterName\": \"hidden1\",			\"type\": \"INTEGER\",			\"minValue\": 1,			\"maxValue\": 10,			\"scallingType\": \"LINEAR\"}, {\"parameterName\": \"learning_rate\",\"type\": \"DOUBLE\",		\"minValue\": 0.01,	\"maxValue\": 0.5,		\"scallingType\": \"LINEAR\"	}	]}");
-			Study st=cl.createStudy("StudyPruebaTest", studyConfiguration, Study.BAYESIAN_OPTIMIZATION);
+			Study st=cl.getOrCreateStudy("StudyPruebaTest", studyConfiguration, Study.BAYESIAN_OPTIMIZATION);
 			System.out.println(st.getAlgorithm());
 			
 		} catch (Exception e) {

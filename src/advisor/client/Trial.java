@@ -14,7 +14,7 @@ public class Trial {
 	private static SimpleDateFormat dtf = new SimpleDateFormat(pattern); 
 	
 	private int id;
-	private int studyId;
+	private String studyName;
 	private String name;
 	private JSONObject parameterValues;
 	private Double objectiveValue;
@@ -22,11 +22,11 @@ public class Trial {
 	private Date createdTime;
 	private Date updatedTime;
 	
-	public Trial(int id, int studyId, String name, JSONObject parameterValues,
+	public Trial(int id, String studyName, String name, JSONObject parameterValues,
 			Double objectiveValue, String status, Date createdTime,
 			Date updatedTime) {
 		this.id = id;
-		this.studyId = studyId;
+		this.studyName = studyName;
 		this.name = name;
 		this.parameterValues = parameterValues;
 		this.objectiveValue = objectiveValue;
@@ -39,7 +39,7 @@ public class Trial {
 		
 		
 		this.id=jsonObject.getInt("id");
-		this.studyId=jsonObject.getInt("study_id");
+		this.studyName=jsonObject.getString("study_name");
 		this.name=jsonObject.getString("name");
 		Object objParams=jsonObject.get("parameter_values");
 		this.parameterValues=objParams.equals(JSONObject.NULL)?null:new JSONObject( jsonObject.getString("parameter_values"));
@@ -57,8 +57,8 @@ public class Trial {
 		return id;
 	}
 
-	public int getStudyId() {
-		return studyId;
+	public String getStudyName() {
+		return studyName;
 	}
 
 	public String getName() {
